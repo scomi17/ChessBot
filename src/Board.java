@@ -23,8 +23,6 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
     private final Engine engine;
     private int difficulty;
 
-    public boolean blackTurn;
-
     Board(int parent_width, int parent_height, Frame parent, Engine engine, int difficulty) {
         /*
         0 is 2 player
@@ -40,7 +38,6 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
         this.curr_click = null;
         this.engine = engine;
         this.difficulty = difficulty;
-        this.blackTurn = false;
 
         init_board();
 
@@ -527,10 +524,6 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
         Point randomPiecePoint = possiblePieces.get(randomPieceIndex);
         Piece randomPiece = board[(int) randomPiecePoint.getY()][(int) randomPiecePoint.getX()];
 
-        if(king_in_check(board, piece_map, side_to_move)){
-
-        }
-
         ArrayList<Move> legalMoves = get_legal_moves(randomPiece);
 
         if(legalMoves.isEmpty()) {
@@ -756,24 +749,16 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
                         }
 
                         move_piece_in_place(move);
-                        blackTurn = !blackTurn;
-                        if(blackTurn && difficulty == 1) {
-                            Move randomMove = randomPieceMove(board);
-                            move_piece_in_place(randomMove);
-                            blackTurn = !blackTurn;
+                        if(side_to_move == -1 && difficulty == 1) {
                             side_to_move *= -1;
+                            Move randomMove = random_piece_move(board);
+                            move_piece_in_place(randomMove);
                         }
 
                         curr_click = null;
                         selected_piece = null;
 
                         side_to_move *= -1;
-
-                        if(blackTurn && difficulty == 1) {
-                            Move randomMove = randomPieceMove(board);
-                            move_piece_in_place(randomMove);
-                            blackTurn = !blackTurn;
-                        }
 
                         repaint();
                         return;
