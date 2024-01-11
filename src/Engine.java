@@ -1,5 +1,6 @@
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -41,16 +42,6 @@ public class Engine extends JPanel {
             'q', 9,
             'k', 0
     );
-
-    public Move search(Piece[][] board) {
-        for (Piece[] row: board) {
-            for (Piece piece : row) {
-
-            }
-        }
-
-        return null;
-    }
 
     public double evaluate(Piece[][] board) {
         double eval;

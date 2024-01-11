@@ -21,8 +21,17 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
     private final HashMap<Character, Point> piece_map = new HashMap<>();
     private final HashMap<Character, Point> test_piece_map = new HashMap<>();
     private final Engine engine;
+    private int difficulty;
 
-    Board(int parent_width, int parent_height, Frame parent, Engine engine) {
+    public boolean blackTurn;
+
+    Board(int parent_width, int parent_height, Frame parent, Engine engine, int difficulty) {
+        /*
+        0 is 2 player
+        1 is easy bot
+        2 is medium bot
+         */
+        System.out.println(difficulty);
         setLocation((parent_width - square_width*8)/2, (parent_height-square_height*8)/2 - 10);
         setSize(square_width * 8, square_height * 8);
         setLayout(null);
@@ -30,6 +39,8 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
         this.parent = parent;
         this.curr_click = null;
         this.engine = engine;
+        this.difficulty = difficulty;
+        this.blackTurn = false;
 
         init_board();
 
@@ -86,6 +97,12 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
         }
         repaint();
     }
+
+    public void setDifficulty(int difficulty){
+        this.difficulty = difficulty;
+        System.out.println(difficulty);
+    }
+
 
     private Piece piece_from_id(Piece[][] board, HashMap<Character, Point> piece_map, char id) {
         return board[piece_map.get(id).y][piece_map.get(id).x];
@@ -492,6 +509,29 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
         return moves;
     }
 
+    public Move randomPieceMove(Piece[][] board) {
+        ArrayList<Point> possiblePieces = new ArrayList<Point>();
+        int pieces = 0;
+
+            for (int y = 0; y < 8; y++) {
+                for (int x = 0; x < 8; x++) {
+                    if (board[y][x] != null && board[y][x].color == 1) {
+                        Point location = new Point(x, y);
+                        possiblePieces.add(location);
+                        pieces++;
+                    }
+                }
+            }
+
+        int randomPieceIndex = (int) (Math.random() * pieces);
+        Point randomPiecePoint = possiblePieces.get(randomPieceIndex);
+        Piece randomPiece = board[(int) randomPiecePoint.getY()][(int) randomPiecePoint.getX()];
+        ArrayList<Move> legalMoves = get_legal_moves(randomPiece);
+        int randomMovesIndex = (int) (Math.random() * legalMoves.size());
+
+        return legalMoves.get(randomMovesIndex);
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -688,53 +728,65 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
                 Math.max(Math.floorDiv(click.x, square_width), 0),
                 Math.max(Math.floorDiv(click.y, square_height), 0)
         );
+            // check to see if a move should be made
+            if (selected_piece != null) {
+                for (Move move : get_legal_moves(selected_piece)) {
+                    if (trans_p.equals(move.to)) {
 
-        // check to see if a move should be made
-        if (selected_piece != null) {
-            for (Move move : get_legal_moves(selected_piece)) {
-                if (trans_p.equals(move.to)) {
+                        // need to specify here that the opposite king should be searched and not the side_to_move king
+                        if (king_in_check(test_move_piece(move.from, move.to), test_piece_map, side_to_move * -1)) {
+                            play_sound("materials/audio/check.wav");
+                        } else if (board[move.to.y][move.to.x] != null) {
+                            // piece is being captured
+                            play_sound("materials/audio/piece-capture.wav");
 
-                    // need to specify here that the opposite king should be searched and not the side_to_move king
-                    if (king_in_check(test_move_piece(move.from, move.to), test_piece_map, side_to_move * -1)) {
-                        play_sound("materials/audio/check.wav");
-                    } else if (board[move.to.y][move.to.x] != null) {
-                        // piece is being captured
-                        play_sound("materials/audio/piece-capture.wav");
+                        } else {
+                            // regular move
+                            play_sound("materials/audio/piece-move.wav");
+                        }
 
-                    } else {
-                        // regular move
-                        play_sound("materials/audio/piece-move.wav");
+                        move_piece_in_place(move);
+                        blackTurn = !blackTurn;
+                        if(blackTurn && difficulty == 1) {
+                            Move randomMove = randomPieceMove(board);
+                            move_piece_in_place(randomMove);
+                            blackTurn = !blackTurn;
+                            side_to_move *= -1;
+                        }
+
+                        curr_click = null;
+                        selected_piece = null;
+
+                        side_to_move *= -1;
+
+                        if(blackTurn && difficulty == 1) {
+                            Move randomMove = randomPieceMove(board);
+                            move_piece_in_place(randomMove);
+                            blackTurn = !blackTurn;
+                        }
+
+                        repaint();
+                        return;
                     }
-
-                    move_piece_in_place(move);
-
-                    curr_click = null;
-                    selected_piece = null;
-
-                    side_to_move *= -1;
-
-                    repaint();
-                    return;
                 }
             }
-        }
 
-        Piece target = board[trans_p.y][trans_p.x];
-        // if there is no piece reset the square
-        if (target == null || target.color != side_to_move) {
-            curr_click = null;
-            selected_piece = null;
-        } else {
-            if (trans_p.equals(curr_click)) {
-                // clicked on same piece --> clear the highlighted square
+            Piece target = board[trans_p.y][trans_p.x];
+            // if there is no piece reset the square
+            if (target == null || target.color != side_to_move) {
                 curr_click = null;
                 selected_piece = null;
             } else {
-                // clicked on new piece --> update highlight
-                curr_click = trans_p;
-                selected_piece = board[trans_p.y][trans_p.x];
+                if (trans_p.equals(curr_click)) {
+                    // clicked on same piece --> clear the highlighted square
+                    curr_click = null;
+                    selected_piece = null;
+                } else {
+                    // clicked on new piece --> update highlight
+                    curr_click = trans_p;
+                    selected_piece = board[trans_p.y][trans_p.x];
+                }
             }
-        }
 
         repaint();
     }
