@@ -5,6 +5,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Objects;
 
@@ -507,32 +508,23 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
     }
 
     public Move random_piece_move(Piece[][] board) {
-        ArrayList<Point> possiblePieces = new ArrayList<Point>();
-        int pieces = 0;
+        ArrayList<Move> possibleMoves = new ArrayList<Move>();
+        int moves = 0;
 
             for (int y = 0; y < 8; y++) {
                 for (int x = 0; x < 8; x++) {
                     if (board[y][x] != null && board[y][x].color == 1) {
-                        Point location = new Point(x, y);
-                        possiblePieces.add(location);
-                        pieces++;
+                        ArrayList<Move> newMoves = get_legal_moves(board[y][x]);
+                       possibleMoves.addAll(newMoves);
+                        moves += newMoves.size();
                     }
                 }
             }
-
-        int randomPieceIndex = (int) (Math.random() * pieces);
-        Point randomPiecePoint = possiblePieces.get(randomPieceIndex);
-        Piece randomPiece = board[(int) randomPiecePoint.getY()][(int) randomPiecePoint.getX()];
-
-        ArrayList<Move> legalMoves = get_legal_moves(randomPiece);
-
-        if(legalMoves.isEmpty()) {
-            return random_piece_move(board);
-        }
-
-        int randomMovesIndex = (int) (Math.random() * legalMoves.size());
-
-        return legalMoves.get(randomMovesIndex);
+            if(possibleMoves.isEmpty()){
+                return null;
+            }
+            int randomIndex = (int) (Math.random() * moves);
+            return possibleMoves.get(randomIndex);
     }
 
     @Override
@@ -752,6 +744,10 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
                         if(side_to_move == -1 && difficulty == 1) {
                             side_to_move *= -1;
                             Move randomMove = random_piece_move(board);
+                            if(randomMove == null){
+                                System.out.println("CheckMate!");
+                                break;
+                            }
                             move_piece_in_place(randomMove);
                         }
 
