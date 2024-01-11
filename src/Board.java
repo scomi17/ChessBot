@@ -5,8 +5,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 @SuppressWarnings("SpellCheckingInspection")
@@ -24,13 +24,10 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
     private final Engine engine;
     private int difficulty;
 
-    Board(int parent_width, int parent_height, Frame parent, Engine engine, int difficulty) {
-        /*
-        0 is 2 player
-        1 is easy bot
-        2 is medium bot
-         */
-        System.out.println(difficulty);
+    public int get_side_to_move() {
+        return side_to_move;
+    }
+    Board(int parent_width, int parent_height, Frame parent, Engine engine) {
         setLocation((parent_width - square_width*8)/2, (parent_height-square_height*8)/2 - 10);
         setSize(square_width * 8, square_height * 8);
         setLayout(null);
@@ -38,7 +35,7 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
         this.parent = parent;
         this.curr_click = null;
         this.engine = engine;
-        this.difficulty = difficulty;
+        this.difficulty = 0;
 
         init_board();
 
@@ -48,19 +45,16 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
         setVisible(true);
     }
 
+    public void setDifficulty(int difficulty){
+        this.difficulty =  difficulty;
+    }
+
+
     private void init_board() {
         String fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
-        /*
-        used for initializing board
-        lowercase is black
-        uppercase is white
-        backslash is end of line
-        number represents the number of blank spaces
-         */
 
         board = new Piece[8][8];
         int file = 0, rank = 0;
-        //file is x rank is y
         for (char c: fen.toCharArray()) {
             if (c == '/') {
                 file = 0; rank += 1;
@@ -68,7 +62,6 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
             }
 
             // CHAR IS A NUMBER => skip some squares
-            //uses ASCII conversion to go from character to integer efficiently
             if ((int) c >= 48 && (int) c <= 57) {
                 int shift = (int) c - 48;
 
@@ -95,12 +88,6 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
         }
         repaint();
     }
-
-    public void setDifficulty(int difficulty){
-        this.difficulty = difficulty;
-        System.out.println(difficulty);
-    }
-
 
     private Piece piece_from_id(Piece[][] board, HashMap<Character, Point> piece_map, char id) {
         return board[piece_map.get(id).y][piece_map.get(id).x];
@@ -259,7 +246,7 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
         return moves;
     }
 
-    public ArrayList<Move> get_legal_moves(Piece piece) {
+    public ArrayList<Move> get_legal_moves(Piece piece, int side_to_move) {
         ArrayList<Move> moves = new ArrayList<>();
 
         boolean in_check = king_in_check(board, piece_map, side_to_move);
@@ -507,26 +494,6 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
         return moves;
     }
 
-    public Move random_piece_move(Piece[][] board) {
-        ArrayList<Move> possibleMoves = new ArrayList<Move>();
-        int moves = 0;
-
-            for (int y = 0; y < 8; y++) {
-                for (int x = 0; x < 8; x++) {
-                    if (board[y][x] != null && board[y][x].color == 1) {
-                        ArrayList<Move> newMoves = get_legal_moves(board[y][x]);
-                       possibleMoves.addAll(newMoves);
-                        moves += newMoves.size();
-                    }
-                }
-            }
-            if(possibleMoves.isEmpty()){
-                return null;
-            }
-            int randomIndex = (int) (Math.random() * moves);
-            return possibleMoves.get(randomIndex);
-    }
-
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -583,7 +550,7 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
         }
 
         if (selected_piece != null) {
-            ArrayList<Move> legal_moves = get_legal_moves(selected_piece);
+            ArrayList<Move> legal_moves = get_legal_moves(selected_piece, side_to_move);
             for (Move move : legal_moves) {
                 if (move == null) break;
 
@@ -715,6 +682,20 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
             ex.printStackTrace();
         }
     }
+
+    private void play_sound_for_move(Move move) {
+        if (king_in_check(test_move_piece(move.from, move.to), test_piece_map, side_to_move * -1)) {
+            play_sound("materials/audio/check.wav");
+        } else if (board[move.to.y][move.to.x] != null) {
+            // piece is being captured
+            play_sound("materials/audio/piece-capture.wav");
+
+        } else {
+            // regular move
+            play_sound("materials/audio/piece-move.wav");
+        }
+    }
+
     @Override
     public void mousePressed(MouseEvent e) {
         // Handle clicking on a piece
@@ -723,63 +704,75 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
                 Math.max(Math.floorDiv(click.x, square_width), 0),
                 Math.max(Math.floorDiv(click.y, square_height), 0)
         );
-            // check to see if a move should be made
-            if (selected_piece != null) {
-                for (Move move : get_legal_moves(selected_piece)) {
-                    if (trans_p.equals(move.to)) {
 
-                        // need to specify here that the opposite king should be searched and not the side_to_move king
-                        if (king_in_check(test_move_piece(move.from, move.to), test_piece_map, side_to_move * -1)) {
-                            play_sound("materials/audio/check.wav");
-                        } else if (board[move.to.y][move.to.x] != null) {
-                            // piece is being captured
-                            play_sound("materials/audio/piece-capture.wav");
+        // check to see if a move should be made
+        if (selected_piece != null) {
+            for (Move move : get_legal_moves(selected_piece, side_to_move)) {
+                if (trans_p.equals(move.to)) {
 
-                        } else {
-                            // regular move
-                            play_sound("materials/audio/piece-move.wav");
-                        }
+                    play_sound_for_move(move);
+                    move_piece_in_place(move);
 
-                        move_piece_in_place(move);
-                        if(side_to_move == -1 && difficulty == 1) {
-                            side_to_move *= -1;
-                            Move randomMove = random_piece_move(board);
-                            if(randomMove == null){
-                                System.out.println("CheckMate!");
-                                break;
-                            }
-                            move_piece_in_place(randomMove);
-                        }
+                    // Random move generation
+//                    Move engine_move = engine.get_random_piece_move(board, side_to_move);
+//                    Move engine_move = engine.get_greedy_capture_move(board, side_to_move);
 
-                        curr_click = null;
-                        selected_piece = null;
-
+                    if(side_to_move == -1 && difficulty == 1){
                         side_to_move *= -1;
-
-                        repaint();
-                        return;
+                        Move engine_move = engine.get_random_piece_move(board, side_to_move);
+                        if (engine_move != null) {
+                            play_sound_for_move(engine_move);
+                            move_piece_in_place(engine_move);
+                        }
+                        else{
+                            System.out.println("Checkmate!");
+                        }
                     }
+                    if(side_to_move == -1 && difficulty == 2){
+                        side_to_move *= -1;
+                        Move engine_move = engine.get_greedy_move_with_tables(board, side_to_move);
+                        if (engine_move != null) {
+                            play_sound_for_move(engine_move);
+                            move_piece_in_place(engine_move);
+                        }
+                        else{
+                            System.out.println("Checkmate!");
+                        }
+                    }
+
+                    curr_click = null;
+                    selected_piece = null;
+
+                    side_to_move *= -1;
+
+                    repaint();
+                    return;
                 }
             }
+        }
 
-            Piece target = board[trans_p.y][trans_p.x];
-            // if there is no piece reset the square
-            if (target == null || target.color != side_to_move) {
+        Piece target = board[trans_p.y][trans_p.x];
+        // if there is no piece reset the square
+        if (target == null || target.color != side_to_move) {
+            curr_click = null;
+            selected_piece = null;
+        } else {
+            if (trans_p.equals(curr_click)) {
+                // clicked on same piece --> clear the highlighted square
                 curr_click = null;
                 selected_piece = null;
             } else {
-                if (trans_p.equals(curr_click)) {
-                    // clicked on same piece --> clear the highlighted square
-                    curr_click = null;
-                    selected_piece = null;
-                } else {
-                    // clicked on new piece --> update highlight
-                    curr_click = trans_p;
-                    selected_piece = board[trans_p.y][trans_p.x];
-                }
+                // clicked on new piece --> update highlight
+                curr_click = trans_p;
+                selected_piece = board[trans_p.y][trans_p.x];
             }
+        }
 
         repaint();
+    }
+
+    public HashMap<Character, Point> get_test_piece_map() {
+        return test_piece_map;
     }
 
     @Override
