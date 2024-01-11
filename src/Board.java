@@ -509,7 +509,7 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
         return moves;
     }
 
-    public Move randomPieceMove(Piece[][] board) {
+    public Move random_piece_move(Piece[][] board) {
         ArrayList<Point> possiblePieces = new ArrayList<Point>();
         int pieces = 0;
 
@@ -526,7 +526,17 @@ public class Board extends JPanel implements MouseListener, MouseMotionListener,
         int randomPieceIndex = (int) (Math.random() * pieces);
         Point randomPiecePoint = possiblePieces.get(randomPieceIndex);
         Piece randomPiece = board[(int) randomPiecePoint.getY()][(int) randomPiecePoint.getX()];
+
+        if(king_in_check(board, piece_map, side_to_move)){
+
+        }
+
         ArrayList<Move> legalMoves = get_legal_moves(randomPiece);
+
+        if(legalMoves.isEmpty()) {
+            return random_piece_move(board);
+        }
+
         int randomMovesIndex = (int) (Math.random() * legalMoves.size());
 
         return legalMoves.get(randomMovesIndex);
